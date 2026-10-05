@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0f172a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="ETF Allocator">
+<link rel="manifest" href="manifest.json">
+<title>ETF Allocator</title>
+<style>
+body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#0b1220;color:#eef2ff}
+.wrap{max-width:760px;margin:auto;padding:18px}
+.card{background:#121a2a;border:1px solid #2a354a;border-radius:18px;padding:16px;margin:14px 0}
+h1{margin:4px 0 2px;font-size:28px}.sub{color:#a9b3c7}
+label{display:block;color:#a9b3c7;font-size:14px;margin-bottom:8px}
+input{font-size:18px;background:#172033;color:#eef2ff;border:1px solid #2a354a;border-radius:12px;padding:10px}
+#weekly{width:100%;font-size:24px}
+table{width:100%;border-collapse:collapse}th,td{padding:10px 6px;border-bottom:1px solid #2a354a}th{color:#a9b3c7;font-size:12px;text-align:left}
+th:nth-child(3),th:nth-child(4),td:nth-child(3),td:nth-child(4){text-align:right}
+.w{width:70px;text-align:right}.ticker{font-weight:800}.role{font-size:12px;color:#a9b3c7}
+.summary{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-top:12px}.tile{background:#172033;border-radius:12px;padding:10px}.k{font-size:12px;color:#a9b3c7}.v{font-size:18px;font-weight:700;margin-top:3px}
+.total{display:flex;justify-content:space-between;margin-top:12px;font-weight:700}
+button{min-height:44px;border:0;border-radius:12px;padding:10px 14px;font-size:15px;font-weight:700;margin-right:8px}.primary{background:#60a5fa;color:#07101f}.secondary{background:#172033;color:#eef2ff;border:1px solid #2a354a}
+.note{font-size:12px;color:#a9b3c7;line-height:1.45}
+@media(max-width:520px){th:nth-child(2),td:nth-child(2){display:none}.summary{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<h1>ETF Allocator</h1>
+<div class="sub">Weekly contribution calculator</div>
+
+<div class="card">
+<label for="weekly">Weekly contribution</label>
+<input id="weekly" type="number" min="0" step="25" value="1000">
+<div class="summary">
+<div class="tile"><div class="k">Monthly equivalent</div><div class="v" id="monthly"></div></div>
+<div class="tile"><div class="k">Annual contributions</div><div class="v" id="annual"></div></div>
+</div>
+</div>
+
+<div class="card">
+<table>
+<thead><tr><th>ETF</th><th>Role</th><th>Weight</th><th>Weekly $</th></tr></thead>
+<tbody id="rows"></tbody>
+</table>
+<div class="total"><span>Total weight</span><span id="totalWeight"></span></div>
+<div style="margin-top:14px">
+<button class="primary" id="reset">Reset targets</button>
+<button class="secondary" id="equal">Equal weight</button>
+</div>
+</div>
+
+<div class="card note">
+Default targets: MGK 22%, THNQ 18%, SOXQ 14%, RACK 11%, GRID 9%, BOTZ 8%, QTUM 7%, NASA 3%, XBI 8%. You can edit every percentage.
+</div>
+</div>
+
+<script>
+const defaults=[
+["MGK","Mega-cap growth core",22],["THNQ","AI ecosystem",18],["SOXQ","Semiconductors",14],
+["RACK","AI/data-center infrastructure",11],["GRID","Grid & electrification",9],["BOTZ","Robotics & physical AI",8],
+["QTUM","Quantum / advanced computing",7],["NASA","Space economy",3],["XBI","Biotechnology",8]
+];
+let funds=defaults.map(x=>({ticker:x[0],role:x[1],weight:x[2]}));
+const $=id=>document.getElementById(id);
+const money=n=>new Intl.NumberFormat("en-US",{style:"currency",currency:"USD"}).format(n||0);
+const whole=n=>new Intl.NumberFormat("en-US",{style:"currency",currency:"USD",maximumFractionDigits:0}).format(n||0);
+function render(){
+ let amt=Number($("weekly").value); if(!Number.isFinite(amt)||amt<0) amt=0;
+ $("rows").innerHTML="";
+ funds.forEach((f,i)=>{
+  const tr=document.createElement("tr");
+  tr.innerHTML=`<td><div class="ticker">${f.ticker}</div></td><td><div class="role">${f.role}</div></td><td><input class="w" type="number" min="0" max="100" step="0.5" value="${f.weight}">%</td><td>${money(amt*f.weight/100)}</td>`;
+  tr.querySelector("input").addEventListener("input",e=>{let v=Number(e.target.value);if(!Number.isFinite(v)||v<0)v=0;if(v>100)v=100;funds[i].weight=v;render()});
+  $("rows").appendChild(tr);
+ });
+ let total=funds.reduce((s,f)=>s+Number(f.weight||0),0);
+ $("totalWeight").textContent=(Math.round(total*10)/10)+"%";
+ $("totalWeight").style.color=Math.abs(total-100)<0.001?"#86efac":"#facc15";
+ $("monthly").textContent=whole(amt*52/12);
+ $("annual").textContent=whole(amt*52);
+}
+$("weekly").addEventListener("input",render);
+$("reset").addEventListener("click",()=>{funds=defaults.map(x=>({ticker:x[0],role:x[1],weight:x[2]}));render()});
+$("equal").addEventListener("click",()=>{let w=100/funds.length;funds=funds.map((f,i)=>({...f,weight:i===funds.length-1?+(100-w*(funds.length-1)).toFixed(2):+w.toFixed(2)}));render()});
+if("serviceWorker" in navigator){window.addEventListener("load",()=>navigator.serviceWorker.register("service-worker.js").catch(()=>{}))}
+render();
+</script>
+</body></html>
